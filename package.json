@@ -1,0 +1,29 @@
+{
+  "name": "i18n-js",
+  "version": "1.0.0",
+  "description": "Just the javascript library taken from the excellent Ruby on Rails i18n-js gem.",
+  "main": "i18n.js",
+  "scripts": {
+    "test": "node_modules/.bin/jasmine-node spec/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/everydayhero/i18n-js.git"
+  },
+  "keywords": [
+    "i18n",
+    "internationalization"
+  ],
+  "contributors": [
+    "Nando Vieira <fnando.vieira@gmail.com>",
+    "Marty Zalega <marty@zalega.me>"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/everydayhero/i18n-js/issues"
+  },
+  "homepage": "https://github.com/everydayhero/i18n-js",
+  "devDependencies": {
+    "jasmine-node": "^1.14.5"
+  }
+}

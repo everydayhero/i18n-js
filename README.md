@@ -1,4 +1,5 @@
 i18n-js
 =======
 
-It's a small library to provide the I18n translations on the Javascript.
+Just the javascript library taken from the excellent Ruby on Rails [i18n-js](https://github.com/fnando/i18n-js) gem.
+

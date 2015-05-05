@@ -1,6 +1,6 @@
 {
   "name": "i18n-js",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Just the javascript library taken from the excellent Ruby on Rails i18n-js gem.",
   "main": "i18n.js",
   "scripts": {

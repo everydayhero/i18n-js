@@ -11,8 +11,24 @@
 //
 // See tests for specific formatting like numbers and dates.
 //
-;(function(I18n){
+
+;(function(factory) {
+  if (typeof module !== 'undefined' && module.exports) {
+    // Node/CommonJS
+    module.exports = factory(this);
+  } else if (typeof define === 'function' && define.amd) {
+    // AMD
+    var global=this;
+    define('i18n', function(){ return factory(global);});
+  } else {
+    // Browser globals
+    this.I18n = factory(this);
+  }
+}(function(global) {
   "use strict";
+
+  // Use previously defined object if exists in current scope
+  var I18n = global && global.I18n || {};
 
   // Just cache the Array#slice function.
   var slice = Array.prototype.slice;
@@ -44,13 +60,16 @@
       unit: "$"
     , precision: 2
     , format: "%u%n"
+    , sign_first: true
     , delimiter: ","
     , separator: "."
   };
 
   // Set default percentage format.
   var PERCENTAGE_FORMAT = {
-      precision: 3
+      unit: "%"
+    , precision: 3
+    , format: "%n%u"
     , separator: "."
     , delimiter: ""
   };
@@ -60,12 +79,27 @@
 
   // Other default options
   var DEFAULT_OPTIONS = {
-    defaultLocale: "en",
-    locale: "en",
-    defaultSeparator: ".",
-    placeholder: /(?:\{\{|%\{)(.*?)(?:\}\}?)/gm,
-    fallbacks: false,
-    translations: {},
+    // Set default locale. This locale will be used when fallback is enabled and
+    // the translation doesn't exist in a particular locale.
+      defaultLocale: "en"
+    // Set the current locale to `en`.
+    , locale: "en"
+    // Set the translation key separator.
+    , defaultSeparator: "."
+    // Set the placeholder format. Accepts `{placeholder}}` and `%{placeholder}`.}
+    , placeholder: /(?:\{\{|%\{)(.*?)(?:\}\}?)/gm
+    // Set if engine should fallback to the default locale when a translation
+    // is missing.
+    , fallbacks: false
+    // Set the default translation object.
+    , translations: {}
+    // Set missing translation behavior. 'message' will display a message
+    // that the translation is missing, 'guess' will try to guess the string
+    , missingBehaviour: 'message'
+    // if you use missingBehaviour with 'message', but want to know that the
+    // string is actually missing for testing purposes, you can prefix the
+    // guessed string by setting the value here. By default, no prefix!
+    , missingTranslationPrefix: ''
   };
 
   I18n.reset = function() {
@@ -88,6 +122,13 @@
 
     // Set the default translation object.
     this.translations = DEFAULT_OPTIONS.translations;
+
+    // Set the default missing behaviour
+    this.missingBehaviour = DEFAULT_OPTIONS.missingBehaviour;
+
+    // Set the default missing string prefix for guess behaviour
+    this.missingTranslationPrefix = DEFAULT_OPTIONS.missingTranslationPrefix;
+
   };
 
   // Much like `reset`, but only assign options if not already assigned
@@ -228,25 +269,14 @@
   I18n.lookup = function(scope, options) {
     options = this.prepareOptions(options);
 
-    var locales = this.locales.get(options.locale)
+    var locales = this.locales.get(options.locale).slice()
       , requestedLocale = locales[0]
       , locale
       , scopes
       , translations
     ;
 
-    // Deal with the scope as an array.
-    if (scope.constructor === Array) {
-      scope = scope.join(this.defaultSeparator);
-    }
-
-    // Deal with the scope option provided through the second argument.
-    //
-    //    I18n.t('hello', {scope: 'greetings'});
-    //
-    if (options.scope) {
-      scope = [options.scope, scope].join(this.defaultSeparator);
-    }
+    scope = this.getFullScope(scope, options);
 
     while (locales.length) {
       locale = locales.shift();
@@ -373,7 +403,7 @@
       }, this);
 
     if (!translationFound) {
-      return this.missingTranslation(scope);
+      return this.missingTranslation(scope, options);
     }
 
     if (typeof(translation) === "string") {
@@ -407,6 +437,8 @@
 
       if (this.isSet(options[name])) {
         value = options[name].toString().replace(/\$/gm, "_#$#_");
+      } else if (name in options) {
+        value = this.nullPlaceholder(placeholder, message);
       } else {
         value = this.missingPlaceholder(placeholder, message);
       }
@@ -415,7 +447,7 @@
       message = message.replace(regex, value);
     }
 
-    return message.replace("_#$#_", "$");
+    return message.replace(/_#\$#_/g, "$");
   };
 
   // Pluralize the given scope using the `count` value.
@@ -432,11 +464,11 @@
     }
 
     if (!translations) {
-      return this.missingTranslation(scope);
+      return this.missingTranslation(scope, options);
     }
 
     pluralizer = this.pluralization.get(options.locale);
-    keys = pluralizer(Math.abs(count));
+    keys = pluralizer(count);
 
     while (keys.length) {
       key = keys.shift();
@@ -452,19 +484,30 @@
   };
 
   // Return a missing translation message for the given parameters.
-  I18n.missingTranslation = function(scope) {
-    var message = '[missing "';
+  I18n.missingTranslation = function(scope, options) {
+    //guess intended string
+    if(this.missingBehaviour == 'guess'){
+      //get only the last portion of the scope
+      var s = scope.split('.').slice(-1)[0];
+      //replace underscore with space && camelcase with space and lowercase letter
+      return (this.missingTranslationPrefix.length > 0 ? this.missingTranslationPrefix : '') +
+          s.replace('_',' ').replace(/([a-z])([A-Z])/g,
+          function(match, p1, p2) {return p1 + ' ' + p2.toLowerCase()} );
+    }
 
-    message += this.currentLocale() + ".";
-    message += slice.call(arguments).join(".");
-    message += '" translation]';
+    var fullScope           = this.getFullScope(scope, options);
+    var fullScopeWithLocale = [this.currentLocale(), fullScope].join(this.defaultSeparator);
 
-    return message;
+    return '[missing "' + fullScopeWithLocale + '" translation]';
   };
 
   // Return a missing placeholder message for given parameters
   I18n.missingPlaceholder = function(placeholder, message) {
     return "[missing " + placeholder + " value]";
+  };
+
+  I18n.nullPlaceholder = function() {
+    return I18n.missingPlaceholder.apply(I18n, arguments);
   };
 
   // Format number using localization rules.
@@ -491,6 +534,8 @@
       , precision
       , buffer = []
       , formattedNumber
+      , format = options.format || "%n"
+      , sign = negative ? "-" : ""
     ;
 
     number = parts[0];
@@ -511,9 +556,18 @@
       formattedNumber += options.separator + precision;
     }
 
-    if (negative) {
-      formattedNumber = "-" + formattedNumber;
+    if (options.sign_first) {
+      format = "%s" + format;
     }
+    else {
+      format = format.replace("%n", "%s%n");
+    }
+
+    formattedNumber = format
+      .replace("%u", options.unit)
+      .replace("%n", formattedNumber)
+      .replace("%s", sign)
+    ;
 
     return formattedNumber;
   };
@@ -541,13 +595,7 @@
       , CURRENCY_FORMAT
     );
 
-    number = this.toNumber(number, options);
-    number = options.format
-      .replace("%u", options.unit)
-      .replace("%n", number)
-    ;
-
-    return number;
+    return this.toNumber(number, options);
   };
 
   // Localize several values.
@@ -557,7 +605,9 @@
   //
   // It will default to the value's `toString` function.
   //
-  I18n.localize = function(scope, value) {
+  I18n.localize = function(scope, value, options) {
+    options || (options = {});
+
     switch (scope) {
       case "currency":
         return this.toCurrency(value);
@@ -567,11 +617,15 @@
       case "percentage":
         return this.toPercentage(value);
       default:
+        var localizedValue;
+
         if (scope.match(/^(date|time)/)) {
-          return this.toTime(scope, value);
+          localizedValue = this.toTime(scope, value);
         } else {
-          return value.toString();
+          localizedValue = value.toString();
         }
+
+        return this.interpolate(localizedValue, options);
     }
   };
 
@@ -753,8 +807,7 @@
       , PERCENTAGE_FORMAT
     );
 
-    number = this.toNumber(number, options);
-    return number + "%";
+    return this.toNumber(number, options);
   };
 
   // Convert a number into a readable size representation.
@@ -781,21 +834,35 @@
 
     options = this.prepareOptions(
         options
-      , {precision: precision, format: "%n%u", delimiter: ""}
+      , {unit: unit, precision: precision, format: "%n%u", delimiter: ""}
     );
 
-    number = this.toNumber(size, options);
-    number = options.format
-      .replace("%u", unit)
-      .replace("%n", number)
-    ;
-
-    return number;
+    return this.toNumber(size, options);
   };
+
+  I18n.getFullScope = function(scope, options) {
+    options = this.prepareOptions(options);
+
+    // Deal with the scope as an array.
+    if (scope.constructor === Array) {
+      scope = scope.join(this.defaultSeparator);
+    }
+
+    // Deal with the scope option provided through the second argument.
+    //
+    //    I18n.t('hello', {scope: 'greetings'});
+    //
+    if (options.scope) {
+      scope = [options.scope, scope].join(this.defaultSeparator);
+    }
+
+    return scope;
+  }
 
   // Set aliases, so we can save some typing.
   I18n.t = I18n.translate;
   I18n.l = I18n.localize;
   I18n.p = I18n.pluralize;
-})(typeof(exports) === "undefined" ? (this.I18n || (this.I18n = {})) : exports);
 
+  return I18n;
+}));

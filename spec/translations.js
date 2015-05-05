@@ -8,6 +8,8 @@ var DEBUG = false;
         hello: "Hello World!"
       , paid: "You were paid %{price}"
 
+      , paid_with_vat: "You were paid %{price} (incl. VAT %{vat})"
+
       , booleans: {
           yes: true,
           no: false
@@ -86,6 +88,7 @@ var DEBUG = false;
               "default": "%d/%m/%Y"
             , "short": "%d de %B"
             , "long": "%d de %B de %Y"
+            , "short_with_placeholders": "%d de %B {{p1}} {{p2}}"
           }
           , day_names: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
           , abbr_day_names: ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
@@ -98,6 +101,7 @@ var DEBUG = false;
                 "default": "%A, %d de %B de %Y, %H:%M h"
               , "short": "%d/%m, %H:%M h"
               , "long": "%A, %d de %B de %Y, %H:%M h"
+              , "short_with_placeholders": "%d/%m, %H:%M h {{p1}}"
             }
           , am: "AM"
           , pm: "PM"
@@ -123,7 +127,9 @@ var DEBUG = false;
     return Translations;
   };
 
-  if (typeof(exports) === "undefined") {
+  if (typeof define === 'function' && define.amd) {
+    define(function() { return generator; });
+  } else if (typeof(exports) === "undefined") {
     window.Translations = generator;
   } else {
     module.exports = generator;

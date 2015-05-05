@@ -24,6 +24,27 @@ describe("Translate", function(){
     expect(actual).toEqual(expected);
   });
 
+  it("returns guessed translation if missingBehaviour is set to guess", function(){
+    I18n.missingBehaviour = 'guess'
+    actual = I18n.t("invalid.thisIsAutomaticallyGeneratedTranslation");
+    expected = 'this is automatically generated translation';
+    expect(actual).toEqual(expected);
+  });
+
+  it("returns guessed translation with prefix if missingBehaviour is set to guess and prefix is also provided", function(){
+    I18n.missingBehaviour = 'guess'
+    I18n.missingTranslationPrefix = 'EE: '
+    actual = I18n.t("invalid.thisIsAutomaticallyGeneratedTranslation");
+    expected = 'EE: this is automatically generated translation';
+    expect(actual).toEqual(expected);
+  });
+
+  it("returns missing message translation for valid scope with scope", function(){
+    actual = I18n.t("monster", {scope: "greetings"});
+    expected = '[missing "en.greetings.monster" translation]';
+    expect(actual).toEqual(expected);
+  });
+
   it("returns translation for single scope on a custom locale", function(){
     I18n.locale = "pt-BR";
     expect(I18n.t("hello")).toEqual("Olá Mundo!");
@@ -161,6 +182,15 @@ describe("Translate", function(){
 
     expect(I18n.t("paid", {price: "$0.12"})).toEqual("You were paid $0.12");
     expect(I18n.t("paid", {price: "$1.35"})).toEqual("You were paid $1.35");
+  });
+
+  it("replaces all occurrences of escaped $", function(){
+    I18n.locale = "en";
+
+    expect(I18n.t("paid_with_vat", {
+      price: "$0.12",
+      vat: "$0.02"}
+    )).toEqual("You were paid $0.12 (incl. VAT $0.02)");
   });
 
   it("sets default scope", function(){

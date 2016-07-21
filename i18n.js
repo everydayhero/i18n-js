@@ -141,6 +141,9 @@
     // string is actually missing for testing purposes, you can prefix the
     // guessed string by setting the value here. By default, no prefix!
     , missingTranslationPrefix: ''
+    // if you want to lookup by full scope instead spliting it by coma and go deep inside a
+    // translations hash. It can be very useful if use have flatten translations hash.
+    , lookupByFullScope: false
   };
 
   I18n.reset = function() {
@@ -169,7 +172,8 @@
 
     // Set the default missing string prefix for guess behaviour
     this.missingTranslationPrefix = DEFAULT_OPTIONS.missingTranslationPrefix;
-
+    
+    this.lookupByFullScope = DEFAULT_OPTIONS.lookupByFullScope;
   };
 
   // Much like `reset`, but only assign options if not already assigned
@@ -321,21 +325,22 @@
 
     while (locales.length) {
       locale = locales.shift();
-      scopes = scope.split(this.defaultSeparator);
       translations = this.translations[locale];
-
       if (!translations) {
         continue;
       }
 
-      while (scopes.length) {
-        translations = translations[scopes.shift()];
-
-        if (translations === undefined || translations === null) {
-          break;
+      if (this.lookupByFullScope == true) {
+        translations = translations[scope];
+      } else {
+        scopes = scope.split(this.defaultSeparator);
+        while (scopes.length) {
+          translations = translations[scopes.shift()];
+          if (translations === undefined || translations === null) {
+            break;
+          }
         }
       }
-
       if (translations !== undefined && translations !== null) {
         return translations;
       }
